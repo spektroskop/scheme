@@ -35,12 +35,12 @@ class Cons
     end
 
     def each
-        curr, prev, index = self, nil, 0
-        while curr.pair?
-            yield curr.car, prev, index if block_given?
-            prev, curr, index = curr, curr.cdr, index += 1
+        cur, pre, index = self, nil, 0
+        while cur.pair?
+            yield cur.car, pre, index if block_given?
+            pre, cur, index = cur, cur.cdr, index += 1
         end
-        prev
+        pre
     end
 
     def reduce(expr = Undefined)
