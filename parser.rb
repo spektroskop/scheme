@@ -29,6 +29,9 @@ class Parser
                 read_number
             when read(:sign) then read_symbol
             when consume("#") then read_hash
+            when consume("'") then read_quote
+            when consume("`") then read_quasiquote
+            when consume(",") then read_unquote
             when consume('"') then read_string
             else error "syntax error"
         end.tap do
@@ -76,6 +79,18 @@ class Parser
         string << get(i, -1)
         expect_delimiter
         string
+    end
+
+    def read_quote
+        List([:quote, read_expr])
+    end
+
+    def read_quasiquote
+        List([:quasiquote, read_expr])
+    end
+
+    def read_unquote
+        List([consume("@") ? :"unquote-splicing" : :"unquote", read_expr])
     end
 
     def read_sign
