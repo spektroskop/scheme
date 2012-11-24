@@ -86,6 +86,7 @@ class Parser
 
     def read_number
         num = read_simple_number
+        num = read_complex_number(num, consume("@")) if read(/[-+@]/)
         expect_delimiter
         num
     end
@@ -93,6 +94,7 @@ class Parser
     def read_simple_number
         sign = read_sign
         num = read_unsigned_number
+        num = read_rational_number(num) if consume("/")
         sign * num
     end
 
@@ -104,6 +106,19 @@ class Parser
         num.gsub!(/\.(?!\d)/, ".0")
         return Float(num) if mark
         Integer(num)
+    end
+
+    def read_rational_number(num)
+        den = read_unsigned_number
+        error("expected integer") unless num.integer? and den.integer?
+        Rational(num, den)
+    end
+
+    def read_complex_number(real, polar)
+        imag = read_simple_number
+        error("expected `i'") unless polar or consume("i")
+        return Complex.polar(real, imag) if polar
+        Complex(real, imag)
     end
 
     def read_digits
