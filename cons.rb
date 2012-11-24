@@ -91,4 +91,16 @@ class Cons
         s+= " . " + x.cdr.to_s unless x.cdr.null?
         return "(#{s})"
     end
+
+    def method_missing(sym, *args)
+        if sym =~ /^c([ad])[ad]*r/
+            ad = Regexp.last_match[1]
+            self.class.class_eval %<def #{sym}
+                #{sym.to_s.sub(ad, "")}.c#{ad}r
+            end>
+            send(sym)
+        else
+            super
+        end
+    end
 end
