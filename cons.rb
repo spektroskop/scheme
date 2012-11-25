@@ -35,10 +35,10 @@ class Cons
     end
 
     def each
-        cur, pre, index = self, nil, 0
+        cur, pre = self, nil
         while cur.pair?
-            yield cur.car, pre, index if block_given?
-            pre, cur, index = cur, cur.cdr, index += 1
+            yield cur.car, pre if block_given?
+            pre, cur = cur, cur.cdr
         end
         pre
     end
