@@ -6,12 +6,14 @@ require "./empty"
 require "./error"
 require "./parser"
 require "./extensions"
+require "./scope"
 
 module Scheme
     extend self
 
     def setup
         @parser = Parser.new
+        @scope = Scope.new
     end
 
     def readline
@@ -28,11 +30,11 @@ module Scheme
         @parser.parse(input)
     end
 
-    def evaluate(expr, scope=nil)
+    def evaluate(expr, scope=@scope)
         expr
     end
 
-    def run(input, scope=nil)
-        result = parse(input).map{|expr| evaluate(expr) }[-1]
+    def run(input, scope=@scope)
+        result = parse(input).map{|expr| evaluate(expr, scope) }[-1]
     end
 end
