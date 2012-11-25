@@ -6,6 +6,7 @@ require "./empty"
 require "./error"
 require "./parser"
 require "./extensions"
+require "./frame"
 require "./scope"
 
 module Scheme
@@ -32,7 +33,9 @@ module Scheme
     end
 
     def evaluate(expr, scope=@scope)
-        expr
+        current = Frame.new(expr, scope)
+        current = current.process while Frame === current
+        current
     end
 
     def run(input, scope=@scope)
