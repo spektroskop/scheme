@@ -60,7 +60,7 @@ class Parser
 
     def read_hash
         case token = consume
-            when /[tf]/ then expect_delimiter  && token == "t"
+            when /[tf]/ then expect_delimiter && token == "t"
             else error("unexpected token after hash")
         end
     end
