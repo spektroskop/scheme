@@ -1,11 +1,7 @@
 require "readline"
 require "paint"
 
-require "./undefined"
-require "./empty"
-require "./error"
 require "./parser"
-require "./extensions"
 require "./frame"
 require "./scope"
 
