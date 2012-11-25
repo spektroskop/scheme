@@ -14,6 +14,7 @@ module Scheme
     def setup
         @parser = Parser.new
         @scope = Scope.new
+        @scope.load("library/primitives.rb")
     end
 
     def readline
