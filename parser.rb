@@ -1,24 +1,24 @@
+require "./error"
 require "./cons"
 
 class Parser
-    def initialize
-        @escape = Hash["n"=>"\n", "\\"=>"\\", '"'=>'"', "t"=>"\t"]
-    end
+    attr_reader :index, :input
 
-    def reset(input)
+    def reset(input=nil)
         @input = input if input
         @index = 0
+        self
     end
 
     def parse(input)
         reset(input)
         nodes = []
-        nodes << read_expr(true) while more?
+        nodes << read_expr while more?
         nodes
     end
 
-    def read_expr(skip = false)
-        skip_space if skip
+    def read_expr
+        skip_space
         case
             when consume("(") then read_list
             when read(:initial) then read_symbol
@@ -33,24 +33,26 @@ class Parser
             when consume("`") then read_quasiquote
             when consume(",") then read_unquote
             when consume('"') then read_string
-            else error "syntax error"
+            else error("syntax error")
         end.tap do
-            skip_space if skip
+            skip_space
         end
     end
+
+  # ---------------------------- #
 
     def read_list
         nodes = []
-        until read(")") or not more?
-            break if consume(:dot, :space) and last = read_expr(true)
-            nodes << read_expr(true)
+        until read(")")
+            break if consume(:dot, :space) and last = read_expr
+            nodes << read_expr
         end
         error("expected closing paren") unless consume(")")
-        List(nodes, last||Empty)
+        List(nodes, last || Empty)
     end
 
     def read_symbol
-        start = @index
+        start = index
         skip while initial? or dec? or sign? or subsequent?
         expect_delimiter
         get(start).to_sym
@@ -58,39 +60,9 @@ class Parser
 
     def read_hash
         case token = consume
-            when /[tf]/ then expect_delimiter && token == "t"
-            else error "unexpected token after hash"
+            when /[tf]/ then expect_delimiter  && token == "t"
+            else error("unexpected token after hash")
         end
-    end
-
-    def read_string
-        string = ""
-        i = @index
-        until read('"') or not more?
-            if consume("\\")
-                string << get(i, -1) << (@escape[consume] ||
-                    error("invalid escape sequence"))
-                i = @index
-            else
-                skip
-            end
-        end
-        error("unterminated string") unless consume('"')
-        string << get(i, -1)
-        expect_delimiter
-        string
-    end
-
-    def read_quote
-        List([:quote, read_expr])
-    end
-
-    def read_quasiquote
-        List([:quasiquote, read_expr])
-    end
-
-    def read_unquote
-        List([consume("@") ? :"unquote-splicing" : :"unquote", read_expr])
     end
 
     def read_sign
@@ -146,6 +118,38 @@ class Parser
         dec?
     end
 
+    def read_quote
+        List([:quote, read_expr])
+    end
+
+    def read_quasiquote
+        List([:quasiquote, read_expr])
+    end
+
+    def read_unquote
+        List([consume("@") ? :"unquote-splicing" : :"unquote", read_expr])
+    end
+
+    def read_string
+        esc = Hash["n" => "\n", "\\" => "\\", '"' => '"', "t" => "\t"]
+        string = ""
+        i = @index
+        until read('"') or not more?
+            if consume("\\")
+                string << get(i, -1) << (esc[consume] || error("invalid escape sequence"))
+                i = @index
+            else
+                skip
+            end
+        end
+        error("unterminated string") unless consume('"')
+        string << get(i, -1)
+        expect_delimiter
+        string
+    end
+
+  # ---------------------------- #
+
     def read(*chars)
         chars.each.with_index do |c, i|
             return unless case c
@@ -158,85 +162,74 @@ class Parser
     end
 
     def consume(*chars)
-        return skip && peek(-1) if chars.empty?
-        if text = read(*chars)
+        if chars.empty?
+            skip
+            peek(-1)
+        elsif text = read(*chars)
             skip(chars.size)
             text
         end
     end
 
-    def get(pre, post = 0)
-        @input[pre...@index + post]
+    def get(pre, post=0)
+        @input[pre...@index+post]
     end
 
-    def peek(n = 0)
-        @input[@index + n]
+    def peek(n=0)
+        @input[@index+n]
     end
 
-    def skip(n = 1)
+    def skip(n=1)
         @index += n
+    end
+
+    def skip_space
+        skip while space?
     end
 
     def more?
         @index < @input.size
     end
 
-    def skip_space
-        loop do
-            skip while space? and more?
-            if read(";")
-                while consume(";")
-                    skip while more? and not consume("\n")
-                end
-            else
-                break
-            end
-        end
-    end
-
-    def delimiter?(char = peek)
-        space?(char) or paren?(char) or not more?
-    end
-
     def expect_delimiter
         delimiter? || error("expected delimiter")
     end
 
-    def paren?(char = peek)
-        ["(", ")"].include?(char)
+  # ---------------------------- #
+
+    def test(group, char)
+        group.include?(char) rescue false
     end
 
-    def dec?(char = peek)
-        ["0", "1", "2", "3", "4",
-         "5", "6", "7", "8", "9"
-        ].include?(char)
+    def paren?(char=peek)
+        test("()", char)
     end
 
-    def space?(char = peek)
-        ["\n", "\s", "\t", "\r"].include?(char)
+    def sign?(char=peek)
+        test("+-", char)
     end
 
-    def sign?(char = peek)
-        ["+", "-"].include?(char)
+    def dec?(char=peek)
+        test("0123456789", char)
     end
 
-    def dot?(char = peek)
+    def dot?(char=peek)
         char == "."
     end
 
-    def initial?(char = peek)
-        ["!", "$", "%", "&", "*",
-         "/", ":", "<", "=", ">",
-         "?", "^", "_", "~", "a",
-         "b", "c", "d", "e", "f",
-         "g", "h", "i", "j", "k",
-         "l", "m", "n", "o", "p",
-         "q", "r", "s", "t", "u",
-         "v", "w", "x", "y", "z"
-        ].include?(char)
+    def space?(char=peek)
+        test("\n\s\t\r", char)
     end
 
-    def subsequent?(char = peek)
-        [".", "\\", "@"].include?(char)
+    def initial?(char=peek)
+        test("!$%&*/:<=>?^_~abcdefghijklmnopqrstuvwxyz", char)
+    end
+
+    def subsequent?(char=peek)
+        test(".\\@", char)
+    end
+
+    def delimiter?(char=peek)
+        not more? or space?(char) or paren?(char)
     end
 end
