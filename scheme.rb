@@ -4,6 +4,7 @@ require "paint"
 require "./parser"
 require "./frame"
 require "./scope"
+require "./extensions"
 
 module Scheme
     extend self
