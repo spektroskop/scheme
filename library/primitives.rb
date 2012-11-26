@@ -1,3 +1,3 @@
 primitive("+") do |*ops|
-  ops.reduce(0, :+)
+    ops.reduce(0, :+)
 end
