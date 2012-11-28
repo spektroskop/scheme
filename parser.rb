@@ -61,8 +61,18 @@ class Parser
     def read_hash
         case token = consume
             when /[tf]/ then expect_delimiter && token == "t"
+            when /[doxb]/ then read_number(read_radix(token), consume("#") && read_exact)
+            when /[ei]/ then read_number(consume("#") && read_radix, read_exact(token))
             else error("unexpected token after hash")
         end
+    end
+
+    def read_exact(token=nil)
+        Hash["e"=>:e, "i"=>:i][token||consume] || error("expected exactness")
+    end
+
+    def read_radix(token=nil)
+        Hash["b"=>"0b", "d"=>"", "o"=>"0", "x"=>"0x"][token||consume] || error("expected radix")
     end
 
     def read_sign
@@ -71,32 +81,37 @@ class Parser
         sign
     end
 
-    def read_number
-        num = read_simple_number
-        num = read_complex_number(num, consume("@")) if read(/[-+@]/)
+    def read_number(radix=nil, exact=nil)
+        opts = Hash[radix: radix, hash: false]
+        num = read_simple_number(opts)
+        num = read_complex_number(num, consume("@"), opts) if read(/[-+@]/)
         expect_delimiter
+        num = num.inexact if opts[:hash]
+        return num.inexact if exact == :i
+        return num.exact if exact == :e
         num
     end
 
-    def read_simple_number
+    def read_simple_number(opts)
         sign = read_sign
-        num = read_unsigned_number
-        num = read_rational_number(num) if consume("/")
+        num = read_unsigned_number(opts)
+        num = read_rational_number(num, opts) if consume("/")
         sign * num
     end
 
-    def read_unsigned_number
+    def read_unsigned_number(opts)
         start = @index
-        mark = read_digits || read_digits
+        mark = read_digits(opts) || read_digits(opts)
         error("expected number") if start == @index
-        num = get(start)
+        num = "#{opts[:radix]}#{get(start)}"
+        opts[:hash] = num.include?("#") && num.gsub!(/\#/, "0")
         num.gsub!(/\.(?!\d)/, ".0")
         return Float(num) if mark
         Integer(num)
     end
 
-    def read_rational_number(num)
-        den = read_unsigned_number
+    def read_rational_number(num, opts)
+        den = read_unsigned_number(opts)
         error("expected integer") unless num.integer? and den.integer?
         Rational(num, den)
     end
@@ -108,14 +123,20 @@ class Parser
         Complex(real, imag)
     end
 
-    def read_digits
+    def read_digits(opts)
         mark = consume(".")
-        skip while digit?
+        error("unexpected decimal mark") if opts[:radix] and mark
+        skip while hash? or digit?(opts[:radix])
         mark
     end
 
-    def digit?
-        dec?
+    def digit?(radix)
+        case radix
+        when "0x" then hex?
+        when nil then dec?
+        when "0" then oct?
+        when "0b" then bin?
+        end
     end
 
     def read_quote
@@ -213,8 +234,24 @@ class Parser
         test("0123456789", char)
     end
 
+    def bin?(char=peek)
+        test("01", char)
+    end
+
+    def oct?(char=peek)
+        test("01234567", char)
+    end
+
+    def hex?(char=peek)
+        test("0123456789abcdef", char)
+    end
+
     def dot?(char=peek)
         char == "."
+    end
+
+    def hash?(char=peek)
+        char == "#"
     end
 
     def space?(char=peek)
