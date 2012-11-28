@@ -38,3 +38,36 @@ class FalseClass
         "#f"
     end
 end
+
+class Numeric
+    def exact?
+        case self
+        when Integer, Rational then true
+        when Float then false
+        when Complex then
+            real.exact? and imaginary.exact?
+        end
+    end
+
+    def inexact?
+        not exact?
+    end
+
+    def exact
+        case self
+        when Integer, Rational then self
+        when Float then to_r
+        when Complex then
+            Complex(real.exact, imaginary.exact)
+        end
+    end
+
+    def inexact
+        case self
+        when Integer, Rational then to_f
+        when Float then self
+        when Complex then
+            Complex(real.inexact, imaginary.inexact)
+        end
+    end
+end
