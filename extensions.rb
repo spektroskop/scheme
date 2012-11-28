@@ -56,7 +56,7 @@ class Numeric
     def exact
         case self
         when Integer, Rational then self
-        when Float then to_r
+        when Float then rationalize
         when Complex then
             Complex(real.exact, imaginary.exact)
         end
