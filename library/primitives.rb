@@ -25,3 +25,11 @@ end
         obj.send(op.to_sym)
     end
 end
+
+primitive("car") do |pair|
+    pair.car
+end
+
+primitive("cdr") do |pair|
+    pair.cdr
+end
