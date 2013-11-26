@@ -44,6 +44,6 @@ class Scope
         error("`#{path}' not found") unless File.file?(path)
         loader = Loader.new(self)
         return loader.instance_eval(File.read(path)) if File.extname(path) == ".rb"
-        Scheme.run(File.read(path), self)
+        Scheme.run(self, File.read(path))
     end
 end

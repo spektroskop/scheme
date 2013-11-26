@@ -44,7 +44,7 @@ module Scheme
         current
     end
 
-    def run(input, scope=@user)
-        result = parse(input).map{|expr| evaluate(scope, expr) }[-1]
+    def run(scope, input)
+        parse(input).map{|expr| evaluate(scope || @user, expr) }[-1]
     end
 end

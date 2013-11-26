@@ -9,7 +9,7 @@ begin
         if parse
             result = Scheme.parse(line)
         else
-            result = Scheme.run(line)
+            result = Scheme.run(nil, line)
         end
         puts Paint["=> #{result}", :cyan, :bold]
     end
