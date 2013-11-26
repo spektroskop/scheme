@@ -25,3 +25,7 @@ end
 syntax("begin") do |scope, nodes|
     Body.new(scope, nodes)
 end
+
+syntax("quote") do |scope, nodes|
+    nodes.car
+end
