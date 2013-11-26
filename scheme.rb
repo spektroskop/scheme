@@ -1,5 +1,12 @@
 require "readline"
-require "paint"
+
+begin
+    require "paint"
+rescue LoadError
+    Paint = lambda do |x, *r|
+        x
+    end
+end
 
 require "./parser"
 require "./frame"
