@@ -6,7 +6,7 @@ primitive("*") do |*ops|
     ops.reduce(1, :*)
 end
 
-primitive("-") do |a ,*ops|
+primitive("-") do |a, *ops|
     [a, *ops].size < 2 ? 0-a : [a, *ops].reduce(:-)
 end
 
