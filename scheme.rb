@@ -30,13 +30,13 @@ module Scheme
         @parser.parse(input)
     end
 
-    def evaluate(expr, scope=@user)
-        current = Frame.new(expr, scope)
+    def evaluate(scope, expr)
+        current = Frame.new(scope, expr)
         current = current.process while Frame === current
         current
     end
 
     def run(input, scope=@user)
-        result = parse(input).map{|expr| evaluate(expr, scope) }[-1]
+        result = parse(input).map{|expr| evaluate(scope, expr) }[-1]
     end
 end

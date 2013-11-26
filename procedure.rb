@@ -16,9 +16,9 @@ class Procedure
         end
     end
 
-    def call(args, scope)
+    def call(scope, args)
         arity(args)
-        args = args.array.map{|node| Scheme.evaluate(node, scope) }
+        args = args.array.map{|node| Scheme.evaluate(scope, node) }
         apply(args)
     end
 

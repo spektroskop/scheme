@@ -1,6 +1,6 @@
 class Frame
-    def initialize(expr, scope)
-        @expr, @scope = expr, scope
+    def initialize(scope, expr)
+        @scope, @expr = scope, expr
     end
 
     def process
@@ -8,9 +8,9 @@ class Frame
             when Symbol then @scope.lookup(@expr)
             when Cons
                 error("expected proper list") unless @expr.list?
-                object = Scheme.evaluate(@expr.car, @scope)
+                object = Scheme.evaluate(@scope, @expr.car)
                 error("expected procedure, got `#{object}'") unless object.procedure?
-                object.call(@expr.cdr, @scope)
+                object.call(@scope, @expr.cdr)
             else @expr
         end
     end
