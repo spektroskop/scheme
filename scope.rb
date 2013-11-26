@@ -11,6 +11,10 @@ class Scope
             @scope.define(name, Primitive.new(&block))
         end
 
+        def syntax(name, &block)
+            @scope.define(name, Syntax.new(&block))
+        end
+
         def load(path)
             @scope.load(path)
         end

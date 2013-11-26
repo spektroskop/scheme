@@ -18,4 +18,13 @@ class Frame
     def to_s
         "#<#{self.class.name.downcase}>"
     end
+
+class Body < Frame
+    def process
+        last = @expr.length - 1
+        @expr.each do |expr, _, i|
+            return Frame.new(@scope, expr) if i == last
+            Scheme.evaluate(@scope, expr)
+        end
+    end
 end

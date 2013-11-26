@@ -13,6 +13,7 @@ module Scheme
         @parser = Parser.new
         @scope = Scope.new
         @scope.load("library/primitives.rb")
+        @scope.load("library/syntax.rb")
         @user = Scope.new(@scope)
     end
 

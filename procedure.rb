@@ -7,6 +7,18 @@ end
 class Procedure
     attr_accessor :name
 
+    def initialize(scope, args, body)
+        @scope = scope
+        @args = args.array rescue []
+        @required = @args.size
+        @body = body
+        if args.pair? and cdr = args.last.cdr
+            @rest = cdr unless cdr.null?
+        else
+            @rest = args if args.symbol?
+        end
+    end
+
     def arity(args)
         num = args.length
         if num < @required or (num > @required and not @rest)
@@ -20,6 +32,13 @@ class Procedure
         arity(args)
         args = args.array.map{|node| Scheme.evaluate(scope, node) }
         apply(args)
+    end
+
+    def apply(args)
+        scope = Scope.new(@scope)
+        scope.define(@rest, List(args.drop(@required))) if @rest
+        scope.define(@args, args)
+        Frame.new(scope, @body)
     end
 
     def to_s
@@ -39,5 +58,11 @@ class Primitive < Procedure
 
     def apply(args)
         @block.call(*args)
+    end
+end
+
+class Syntax < Primitive
+    def call(scope, args)
+        @block.call(scope, args)
     end
 end
