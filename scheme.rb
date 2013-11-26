@@ -21,6 +21,7 @@ module Scheme
         @scope = Scope.new
         @scope.load("library/primitives.rb")
         @scope.load("library/syntax.rb")
+        @scope.load("library/library.ss")
         @user = Scope.new(@scope)
     end
 
