@@ -51,6 +51,20 @@ syntax("if") do |scope, nodes|
     Frame.new(scope, expr)
 end
 
+syntax("and") do |scope, nodes|
+    expr = nodes.reverse.reduce(true) do |expr, node|
+        List([:if, node, expr, false])
+    end
+    Frame.new(scope, expr)
+end
+
+syntax("or") do |scope, nodes|
+    expr = nodes.reverse.reduce(false) do |expr, node|
+        List([:if, node, true, expr])
+    end
+    Frame.new(scope, expr)
+end
+
 syntax("let") do |scope, nodes|
     expr =
         if Symbol === nodes.car
