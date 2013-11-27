@@ -38,6 +38,7 @@ class Scope
             object.name = name if object.respond_to?(:name=)
             @symbols[name.to_sym] = object
         end
+        @symbols.values[-1]
     end
 
     def load(path)

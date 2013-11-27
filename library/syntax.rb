@@ -9,7 +9,6 @@ syntax("define") do |scope, nodes|
     if nodes.car.symbol?
         expr = Scheme.evaluate(scope, nodes.cadr)
         scope.define(nodes.car, expr)
-        expr
     else
         Frame.new(scope,
             List([:define, nodes.caar,
