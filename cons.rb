@@ -37,7 +37,7 @@ class Cons
     def each
         cur, pre, idx = self, nil, 0
         while cur.pair?
-            yield cur.car, pre, idx if block_given?
+            yield(cur.car, pre, idx) if block_given?
             pre, cur = cur, cur.cdr, idx += 1
         end
         pre
