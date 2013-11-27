@@ -40,7 +40,7 @@ syntax("quote") do |scope, nodes|
 end
 
 syntax("if") do |scope, nodes|
-    Frame.new scope,
+    expr =
         if Scheme.evaluate(scope, nodes.car)
             nodes.cadr
         elsif nodes.cddr.null?
@@ -48,10 +48,11 @@ syntax("if") do |scope, nodes|
         else
             nodes.caddr
         end
+    Frame.new(scope, expr)
 end
 
 syntax("let") do |scope, nodes|
-    Frame.new scope,
+    expr =
         if Symbol === nodes.car
             names, values = args(nodes.cadr)
             List([:letrec, [[nodes.car,
@@ -63,11 +64,13 @@ syntax("let") do |scope, nodes|
                  sequence(nodes.cdr)],
                  *values])
         end
+    Frame.new(scope, expr)
 end
 
 syntax("letrec") do |scope, nodes|
-    Frame.new(scope,
+    expr =
         List(nodes.car.reduce([:let, []]) { |expr, node|
                 expr.push([:define, node.car, node.cadr])
-             }.push(nodes.cadr)))
+             }.push(nodes.cadr))
+    Frame.new(scope, expr)
 end
