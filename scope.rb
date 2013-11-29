@@ -20,8 +20,14 @@ class Scope
         end
     end
 
+    attr_reader :parent, :symbols
+
     def initialize(parent = nil)
         @parent, @symbols = parent, Hash.new
+    end
+
+    def keys
+        @symbols.keys
     end
 
     def lookup(name)
