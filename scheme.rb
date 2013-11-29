@@ -26,12 +26,18 @@ module Scheme
     end
 
     def readline
-        loop do
-            line = Readline.readline(Paint[">> ", :green, :bold])
-            next if line.empty?
-            Readline::HISTORY.push(line) unless line == Readline::HISTORY.to_a[-1]
-            yield(line) if block_given?
-            line
+        Readline.completion_proc = proc do |s|
+            (@user.keys + @scope.keys).uniq.grep(/^#{Regexp.escape(s)}/)
+        end
+
+        begin
+            loop do
+                line = Readline.readline(Paint[">> ", :green, :bold])
+                next if line.empty?
+                Readline::HISTORY.push(line) unless line == Readline::HISTORY.to_a[-1]
+                yield(line) if block_given?
+                line
+            end
         end
     end
 
