@@ -82,9 +82,8 @@ syntax("let") do |scope, nodes|
 end
 
 syntax("letrec") do |scope, nodes|
-    expr =
-        List(nodes.car.reduce([:let, []]) { |expr, node|
-                expr.push([:define, node.car, node.cadr])
-             }.push(nodes.cadr))
+    expr = List(nodes.car.reduce([:let, Empty]) { |expr, node|
+               expr.push([:define, node.car, node.cadr])
+           }.push(nodes.cadr))
     Frame.new(scope, expr)
 end
