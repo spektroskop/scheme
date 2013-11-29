@@ -20,6 +20,12 @@ primitive("/") do |a, *ops|
     end
 end
 
+primitive("=") do |a, *ops|
+    ops.all? do |op|
+        a == op
+    end
+end
+
 %w<number? complex? real? rational? integer?>.each do |op|
     primitive(op) do |obj|
         obj.send(op.to_sym)
