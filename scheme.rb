@@ -41,10 +41,6 @@ module Scheme
         end
     end
 
-    def parse(input)
-        @parser.parse(input)
-    end
-
     def evaluate(scope, expr)
         current = Frame.new(scope, expr)
         current = current.process while Frame === current
@@ -52,6 +48,8 @@ module Scheme
     end
 
     def run(scope, input)
-        parse(input).map{|expr| evaluate(scope || @user, expr) }[-1]
+        @parser.run(input) do |expr|
+            evaluate(scope || @user, expr)
+        end
     end
 end

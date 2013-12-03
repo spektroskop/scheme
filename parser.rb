@@ -1,272 +1,232 @@
 require "./error"
+require "./scanner"
+require "./empty"
 require "./cons"
+require "./extensions"
 
-class Parser
-    attr_reader :index, :input
-
-    def reset(input=nil)
-        @input = input if input
-        @index = 0
-        self
-    end
-
-    def parse(input)
-        reset(input)
-        nodes = []
-        nodes << read_expr while more?
-        nodes
+class Parser < Scanner
+    def run(input, &block)
+        setup(input)
+        expr = block ? yield(read_expr) : read_expr while more?
+        expr
     end
 
     def read_expr
         skip_space
-        case
-            when consume("(") then read_list
-            when read(:initial) then read_symbol
-            when read(:dec),
-                 read(:sign, :dec),
-                 read(:sign, :dot, :dec),
-                 read(:dot, :dec)
-                read_number
-            when read(:sign) then read_symbol
-            when consume("#") then read_hash
-            when consume("'") then read_quote
-            when consume("`") then read_quasiquote
-            when consume(",") then read_unquote
-            when consume('"') then read_string
-            else error("syntax error")
-        end.tap do
-            skip_space
-        end
+        expr = case
+               when consume("(") then read_list
+               when initial? then read_identifier
+               when peek(%r<[+-]>, %r<[i\d.]>), peek(".", %r<[i\d]>), digit? then read_number
+               when sign?, peek("...") then read_peculiar_identifier
+               when consume("#") then read_sharp
+               when consume("'") then read_quote
+               when consume("`") then read_quasiquote
+               when consume(",") then read_unquote
+               when consume('"') then read_string
+               else error("Syntax error")
+               end
+        skip_space
+        expr
     end
-
-  # ---------------------------- #
 
     def read_list
         nodes = []
-        until read(")")
-            break if consume(:dot, :space) and last = read_expr
-            nodes << read_expr
-        end
-        error("expected closing paren") unless consume(")")
-        List(nodes, last || Empty)
+        nodes << read_expr until peek(". ") or peek(")")
+        tail = read_expr if consume(". ")
+        error("Expected closing paren") unless consume(")")
+        List(nodes, tail || Empty)
     end
 
-    def read_symbol
-        start = index
-        skip while initial? or dec? or sign? or subsequent?
+    def read_identifier
+        data = ""
+        data += consume while subsequent?
         expect_delimiter
-        get(start).to_sym
+        data.intern
     end
 
-    def read_hash
+    def read_peculiar_identifier
+        data = if sign? then consume
+               else consume("...")
+               end
+        expect_delimiter
+        data.intern
+    end
+
+    def read_sharp
         case token = consume
-            when /[tf]/ then expect_delimiter && token == "t"
-            when /[doxb]/ then read_number(read_radix(token), consume("#") && read_exact)
-            when /[ei]/ then read_number(consume("#") && read_radix, read_exact(token))
-            else error("unexpected token after hash")
+        when %r<[doxb]>
+            radix = read_radix(token)
+            exact = read_exact if consume("#")
+            read_number(radix, exact)
+        when %r<[ei]>
+            exact = read_exact(token)
+            radix = read_radix if consume("#")
+            read_number(radix || "", exact)
+        when %r<[tf]>
+            expect_delimiter
+            token == "t"
+        else
+            error("Unexpected token after `#'")
         end
     end
 
-    def read_exact(token=nil)
-        Hash["e"=>:e, "i"=>:i][token||consume] || error("expected exactness")
+    def read_exact(token = nil)
+        case token || token = consume
+        when %r<[ei]> then token
+        else error("Expected exactness")
+        end
     end
 
-    def read_radix(token=nil)
-        Hash["b"=>"0b", "d"=>"", "o"=>"0", "x"=>"0x"][token||consume] || error("expected radix")
+    def read_radix(token = nil)
+        case token || consume
+        when "b" then "0b"
+        when "d" then ""
+        when "o" then "0"
+        when "x" then "0x"
+        else error("Expected radix")
+        end
     end
 
     def read_sign
-        sign = consume("-") ? -1 : 1
-        consume("+")
-        sign
-    end
-
-    def read_number(radix=nil, exact=nil)
-        opts = Hash[radix: radix, hash: false]
-        num = read_simple_number(opts)
-        num = read_complex_number(num, consume("@"), opts) if read(/[-+@]/)
-        expect_delimiter
-        num = num.inexact if opts[:hash]
-        return num.inexact if exact == :i
-        return num.exact if exact == :e
-        num
-    end
-
-    def read_simple_number(opts)
-        sign = read_sign
-        num = read_unsigned_number(opts)
-        num = read_rational_number(num, opts) if consume("/")
-        sign * num
-    end
-
-    def read_unsigned_number(opts)
-        start = @index
-        mark = read_digits(opts) || read_digits(opts)
-        error("expected number") if start == @index
-        num = "#{opts[:radix]}#{get(start)}"
-        opts[:hash] = num.include?("#") && num.gsub!(/\#/, "0")
-        num.gsub!(/\.(?!\d)/, ".0")
-        return Float(num) if mark
-        Integer(num)
-    end
-
-    def read_rational_number(num, opts)
-        den = read_unsigned_number(opts)
-        error("expected integer") unless num.integer? and den.integer?
-        Rational(num, den)
-    end
-
-    def read_complex_number(real, polar)
-        imag = read_simple_number
-        error("expected `i'") unless polar or consume("i")
-        return Complex.polar(real, imag) if polar
-        Complex(real, imag)
-    end
-
-    def read_digits(opts)
-        mark = consume(".")
-        error("unexpected decimal mark") if opts[:radix] and mark
-        skip while hash? or digit?(opts[:radix])
-        mark
-    end
-
-    def digit?(radix)
-        case radix
-        when "0x" then hex?
-        when nil then dec?
-        when "0" then oct?
-        when "0b" then bin?
+        case consume(%r<[+-]>)
+        when "+" then  1
+        when "-" then -1
         end
+    end
+
+    def read_number(radix = "", exact = nil)
+        number = read_complex_number(radix)
+        error("Expected number") unless number
+        expect_delimiter
+        case exact
+        when "i" then number.inexact
+        when "e" then number.exact
+        else number
+        end
+    end
+
+    def read_complex_number(radix)
+        if complex = consume(%r<[+-]>, "i")
+            return Complex(complex)
+        end
+
+        return unless number = read_real_number(radix)
+
+        return Complex(number) if consume("i")
+
+        if consume("@")
+            return unless imaginary = read_real_number(radix)
+            return Complex.polar(number, imaginary)
+        end
+
+        if sign = read_sign
+            imaginary = read_unsigned_real_number(radix) || 1
+            return unless consume("i")
+            return Complex(number, sign * imaginary)
+        end
+
+        number
+    end
+
+    def read_real_number(radix)
+        sign = read_sign
+        return unless number = read_unsigned_real_number(radix)
+        number * (sign || 1)
+    end
+
+    def read_decimal_number(radix, default = nil)
+        return if radix != ""
+        read_unsigned_integer(radix) || default
+    end
+
+    def read_unsigned_real_number(radix)
+        if consume(".") and decimal = read_decimal_number(radix)
+            return Float("0." + decimal)
+        end
+
+        return unless number = read_unsigned_integer(radix)
+
+        if consume(".") and decimal = read_decimal_number(radix, "0")
+            return Float(number + "." + decimal)
+        end
+
+        if consume("/") and denominator = read_unsigned_integer(radix)
+            return Rational(Integer(number), Integer(denominator))
+        end
+
+        Integer(radix + number)
+    end
+
+    def read_unsigned_integer(radix)
+        number = ""
+        number += consume while digit?(radix: radix)
+        number.empty? ? nil : number
     end
 
     def read_quote
         List([:quote, read_expr])
     end
 
-    def read_quasiquote
-        List([:quasiquote, read_expr])
-    end
-
     def read_unquote
         List([consume("@") ? :"unquote-splicing" : :"unquote", read_expr])
     end
 
-    def read_string
-        esc = Hash["n" => "\n", "\\" => "\\", '"' => '"', "t" => "\t"]
-        string = ""
-        i = @index
-        until read('"') or not more?
-            if consume("\\")
-                string << get(i, -1) << (esc[consume] || error("invalid escape sequence"))
-                i = @index
-            else
-                skip
-            end
+    def read_quasiquote
+        List([:quasiquote, read_expr])
+    end
+
+    def read_escape_sequence
+        case consume
+        when "n" then "\n"
+        when "\\" then "\\"
+        when '"' then '"'
+        when "t" then "\t"
+        else error("Invalid escape sequence")
         end
-        error("unterminated string") unless consume('"')
-        string << get(i, -1)
+    end
+
+    def read_string
+        string = ""
+        string += consume("\\") ? read_escape_sequence : consume until peek('"')
+        error("Unterminated string") unless consume('"')
         expect_delimiter
         string
     end
 
-  # ---------------------------- #
-
-    def read(*chars)
-        chars.each.with_index do |c, i|
-            return unless case c
-                when String then c == peek(i)
-                when Regexp then c.match(peek(i))
-                else send("#{c}?", peek(i))
-            end
-        end
-        get(@index, chars.size)
-    end
-
-    def consume(*chars)
-        if chars.empty?
-            skip
-            peek(-1)
-        elsif text = read(*chars)
-            skip(chars.size)
-            text
-        end
-    end
-
-    def get(pre, post=0)
-        @input[pre...@index+post]
-    end
-
-    def peek(n=0)
-        @input[@index+n]
-    end
-
-    def skip(n=1)
-        @index += n
+    def expect_delimiter
+        delimiter? or error("Expected delimiter")
     end
 
     def skip_space
-        skip while space?
+        consume while space?
     end
 
-    def more?
-        @index < @input.size
+    def delimiter?
+        not more? or space? or peek(%r<[()]>)
     end
 
-    def expect_delimiter
-        delimiter? || error("expected delimiter")
+    def space?(char = peek)
+        char =~ %r<\s>
     end
 
-  # ---------------------------- #
-
-    def test(group, char)
-        group.include?(char) rescue false
+    def sign?(char = peek)
+        char =~ %r<[+-]>
     end
 
-    def paren?(char=peek)
-        test("()", char)
+    def digit?(char = peek, radix: "")
+        case radix
+        when "0b" then char =~ %r<[0-1]>
+        when "" then char =~ %r<\d>
+        when "0" then char =~ %r<[0-7]>
+        when "0x" then char =~ %r<\h>
+        end
     end
 
-    def sign?(char=peek)
-        test("+-", char)
+    def initial?(char = peek)
+        char =~ %r<[a-z!$%&*/:<=>?^_~]>i
     end
 
-    def dec?(char=peek)
-        test("0123456789", char)
-    end
-
-    def bin?(char=peek)
-        test("01", char)
-    end
-
-    def oct?(char=peek)
-        test("01234567", char)
-    end
-
-    def hex?(char=peek)
-        test("0123456789abcdef", char)
-    end
-
-    def dot?(char=peek)
-        char == "."
-    end
-
-    def hash?(char=peek)
-        char == "#"
-    end
-
-    def space?(char=peek)
-        test("\n\s\t\r", char)
-    end
-
-    def initial?(char=peek)
-        test("!$%&*/:<=>?^_~abcdefghijklmnopqrstuvwxyz", char)
-    end
-
-    def subsequent?(char=peek)
-        test(".\\@", char)
-    end
-
-    def delimiter?(char=peek)
-        not more? or space?(char) or paren?(char)
+    def subsequent?(char = peek)
+        initial? or digit? or sign? or char =~ %r<[.\@]>
     end
 end
