@@ -26,3 +26,5 @@
 (define (cddadr x) (cddar (cdr x)))
 (define (cdddar x) (cdddr (car x)))
 (define (cddddr x) (cdddr (cdr x)))
+
+(define (zero? x) (= x 0))
