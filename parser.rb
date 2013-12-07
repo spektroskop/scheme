@@ -109,8 +109,8 @@ class Parser < Scanner
     end
 
     def read_complex_number(radix)
-        if complex = consume(%r<[+-]>, "i")
-            return Complex(complex)
+        if number = consume(%r<[+-]>, "i")
+            return Complex(number)
         end
 
         return unless number = read_real_number(radix)
