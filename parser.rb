@@ -16,8 +16,11 @@ class Parser < Scanner
         expr = case
                when consume("(") then read_list
                when initial? then read_identifier
-               when peek(%r<[+-]>, %r<[i\d.]>), peek(".", %r<[i\d]>), digit? then read_number
-               when sign?, peek("...") then read_peculiar_identifier
+               when peek(%r<[+-]>, %r<[i\d.]>) then read_number
+               when peek(".", %r<[i\d]>) then read_number
+               when digit? then read_number
+               when token = consume("...") then expect_delimiter and token.intern
+               when token = consume(:sign?) then expect_delimiter and token.intern
                when consume("#") then read_sharp
                when consume("'") then read_quote
                when consume("`") then read_quasiquote
