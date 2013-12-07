@@ -32,33 +32,20 @@ class Scanner
         end
     end
 
-    def read(*chars)
+    def consume(*chars)
+        return @input.getc if chars.empty?
         args(chars).reduce("") do |buffer, matcher|
             if char = @input.getc and match(matcher, char)
-                buffer << char
+                buffer += char
             else
                 unread(buffer + char.to_s) and return
             end
         end
     end
 
-    def consume(*chars)
-        unless chars.empty?
-            read(*chars)
-        else
-            @input.getc
-        end
-    end
-
     def peek(*chars)
-        unless chars.empty?
-            read(*chars).tap do |chars|
-                unread(chars) unless chars.nil?
-            end
-        else
-            @input.getc.tap do |c|
-                @input.ungetc(c)
-            end
+        consume(*chars).tap do |string|
+            unread(string) unless string.nil?
         end
     end
 end
