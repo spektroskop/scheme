@@ -18,6 +18,7 @@ class Frame
     def to_s
         "#<#{self.class.name.downcase}>"
     end
+end
 
 class Body < Frame
     def process
