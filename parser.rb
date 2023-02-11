@@ -19,8 +19,7 @@ class Parser < Scanner
                when peek(%r<[+-]>, %r<[i\d.]>) then read_number
                when peek(".", %r<[i\d]>) then read_number
                when digit? then read_number
-               when token = consume("...") then expect_delimiter and token.intern
-               when token = consume(:sign?) then expect_delimiter and token.intern
+               when sign?, peek("...") then read_peculiar_identifier
                when consume("#") then read_sharp
                when consume("'") then read_quote
                when consume("`") then read_quasiquote
